@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+            http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
+
+
+  <!-- 注册中心实现 -->
+  <bean id="apolloThreadPoolConfigCentre"
+        class="weihui.bcss.support.dtp.core.config.impl.ApolloThreadPoolConfigCenterImpl"/>
+
+    <!-- 线程池监控 -->
+    <bean id="dynamicThreadPoolMonitor" class="weihui.bcss.support.dtp.core.monitor.DefaultMonitorServiceImpl" >
+        <property name="reportStrategy">
+            <!-- 默认为 log report-->
+            <bean class="weihui.bcss.support.dtp.core.monitor.report.strategy.LogReportStrategy">
+                <property name="logDurationOfSeconds" value="10"/>
+            </bean>
+        </property>
+    </bean>
+</beans>

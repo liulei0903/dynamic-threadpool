@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:apollo="http://www.ctrip.com/schema/apollo"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+            http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+            http://www.ctrip.com/schema/apollo
+           http://www.ctrip.com/schema/apollo.xsd">
+
+
+    <import resource="dynamic-threadpool.xml" />
+
+    <!-- spring property bean 方式引入 -->
+    <bean id="testThreadPoolExecutor" class="weihui.bcss.support.dtp.core.threadpool.DynamicThreadPoolFactoryBean">
+       <property name="threadPoolConfig">
+           <bean class="weihui.bcss.support.dtp.core.config.model.ThreadPoolConfig" >
+               <property name="corePoolSize" value="10"/>
+               <property name="maximumPoolSize" value="20"/>
+               <property name="queueCapacity" value="100"/>
+               <property name="unit" value="SECONDS"/>
+               <property name="keepAliveTime" value="120"/>
+               <property name="rejectedExecutionHandler">
+                   <bean class="java.util.concurrent.ThreadPoolExecutor$DiscardPolicy"/>
+               </property>
+               <property name="threadFactory">
+                   <bean class="threadpool.TestThreadFactory" >
+                       <constructor-arg value="myTest"></constructor-arg>
+                   </bean>
+               </property>
+           </bean>
+       </property>
+    </bean>
+
+
+
+</beans>
