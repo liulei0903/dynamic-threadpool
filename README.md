@@ -1,5 +1,9 @@
 # dynamic-threadpool
-一、如何接入
+一、前提条件
+1、动态配置必须依赖配置中心,这里默认集成apollo配置中心
+
+二、如何接入
+
 1、在apollo配置中心新建nameSpace
 
 这里区分两种场景：
