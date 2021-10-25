@@ -12,10 +12,13 @@ import weihui.bcss.support.dtp.core.monitor.AbstractMonitorServiceBase;
 import weihui.bcss.support.dtp.core.monitor.MonitorService;
 import weihui.bcss.support.dtp.core.monitor.transaction.Transaction;
 import weihui.bcss.support.dtp.core.monitor.transaction.TransactionStatisticsGroup;
+import weihui.bcss.support.dtp.core.queue.AntiDuplicateBlockingQueue;
 import weihui.bcss.support.dtp.core.queue.ResizableCapacityLinkedBlockIngQueue;
+import weihui.bcss.support.dtp.core.threadpool.command.CallableTypeDecorator;
+import weihui.bcss.support.dtp.core.threadpool.command.RunnableTypeDecorator;
+import weihui.bcss.support.dtp.core.threadpool.command.CommandType;
 
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -28,44 +31,34 @@ import java.util.concurrent.atomic.AtomicLong;
  * @Author liulei
  * @Date 2021年5月24日18:12:10
  **/
-public class DynamicThreadPoolExecutor extends ThreadPoolExecutor {
+public class DynamicThreadPoolExecutor extends ThreadPoolExecutor implements TaskTypeExecutorService {
 
     private static final Logger logger = LoggerFactory.getLogger(DynamicThreadPoolExecutor.class);
 
     /**
      * 线程池名称
      */
-    private String threadPoolName;
-
-    /**
-     * 默认任务名称
-     */
-    private String defaultTaskName = "defaultTask";
+    private final String threadPoolName;
 
     /**
      * 拒绝任务数
      */
-    private AtomicLong rejectCount = new AtomicLong(0);
+    private final AtomicLong rejectCount = new AtomicLong(0);
 
     /**
      * 配置中心
      */
-    private ThreadPoolConfigCenter configCenter;
+    private final ThreadPoolConfigCenter configCenter;
 
     /**
      * 线程池配置
      */
-    private ThreadPoolConfig threadPoolConfig;
-
-    private MonitorService runningStateMonitor;
-
+    private final ThreadPoolConfig threadPoolConfig;
 
     /**
-     * 记录 Runnable/Callable 的Class全路径 与 taskName的映射关系
-     * 问：为什么不能用 ThreadLocal 来存 Runnable/Callable 与 taskName 的映射关系？
-     * 答：因为 execute 与 beforeExecute 不在一个线程中, execute 是业务线程， beforeExecute 是线程池中的线程 ， ThreadLocal会丢失上下文
+     * 线程池监控器
      */
-    private Map<String, String> runnableNameMap = new ConcurrentHashMap<String, String>();
+    private final MonitorService runningStateMonitor;
 
 
     public DynamicThreadPoolExecutor(ThreadPoolConfig threadPoolConfig, ThreadPoolConfigCenter configCenter, AbstractMonitorServiceBase runningStateMonitor) {
@@ -138,18 +131,22 @@ public class DynamicThreadPoolExecutor extends ThreadPoolExecutor {
         super.execute(new RunnableTypeDecorator(command));
     }
 
+    @Override
     public void execute(Runnable command, String taskName) {
         super.execute(new RunnableTypeDecorator(taskName, command));
     }
 
+    @Override
     public Future<?> submit(Runnable task, String taskName) {
         return super.submit(new RunnableTypeDecorator(taskName, task));
     }
 
+    @Override
     public <T> Future<T> submit(Callable<T> task, String taskName) {
         return super.submit(new CallableTypeDecorator(taskName, task));
     }
 
+    @Override
     public <T> Future<T> submit(Runnable task, T result, String taskName) {
         return super.submit(new RunnableTypeDecorator(taskName, task), result);
     }
@@ -180,7 +177,7 @@ public class DynamicThreadPoolExecutor extends ThreadPoolExecutor {
     @Override
     protected void beforeExecute(Thread t, Runnable r) {
         TransactionStatisticsGroup tsg = TransactionStatisticsGroup.Builder.aTransactionStatisticsGroup().withThreadPoolName(getThreadPoolName()).withTaskType(getTaskTypeByRunnable(r)).build();
-        Transaction transaction = runningStateMonitor.newTransaction(tsg);
+        Transaction transaction = runningStateMonitor.newTransaction(tsg , r);
         tranLocal.set(transaction);
         super.beforeExecute(t, r);
     }
@@ -191,7 +188,7 @@ public class DynamicThreadPoolExecutor extends ThreadPoolExecutor {
         try {
             Transaction transaction = tranLocal.get();
             //设置执行结果
-            transaction.setStatus(t == null ? true : false);
+            transaction.setStatus(t == null);
             //任务结束
             transaction.complete();
             //收集任务
@@ -220,7 +217,6 @@ public class DynamicThreadPoolExecutor extends ThreadPoolExecutor {
 
     /**
      * 该非线程安全,在并发场景,可能会导致rejectCount少统计
-     * TODO 什么时机该触发 clean?
      */
     public void cleanRejectCount() {
         this.rejectCount.set(0);
@@ -243,7 +239,7 @@ public class DynamicThreadPoolExecutor extends ThreadPoolExecutor {
      */
     public static class RejectedCountDecorateExecutionHandler implements RejectedExecutionHandler {
 
-        private RejectedExecutionHandler handler;
+        private final RejectedExecutionHandler handler;
 
 
         public RejectedCountDecorateExecutionHandler(RejectedExecutionHandler handler) {
@@ -253,7 +249,7 @@ public class DynamicThreadPoolExecutor extends ThreadPoolExecutor {
         @Override
         public void rejectedExecution(Runnable r, ThreadPoolExecutor e) {
             if (e instanceof DynamicThreadPoolExecutor) {
-                //递增拒绝任务数
+                //先递增拒绝任务数
                 ((DynamicThreadPoolExecutor) e).incrementRejectCount();
             }
             handler.rejectedExecution(r, e);
@@ -305,44 +301,51 @@ public class DynamicThreadPoolExecutor extends ThreadPoolExecutor {
      * @return
      */
     public static BlockingQueue getBlockingQueue(ThreadPoolConfig threadPoolConfig) {
+        //如果已经注入了queue实例,就直接使用注入的
         if (threadPoolConfig.getQueue() != null) {
             return threadPoolConfig.getQueue();
         }
-        return getBlockingQueue(threadPoolConfig.getQueueType(), threadPoolConfig.getQueueCapacity(), threadPoolConfig.isFair());
-    }
 
-    /**
-     * 获取阻塞队列
-     *
-     * @param queueType
-     * @param queueCapacity
-     * @param fair
-     * @return
-     */
-    public static BlockingQueue getBlockingQueue(String queueType, int queueCapacity, boolean fair) {
+        //通过配置构造queue实例
+        String queueType = threadPoolConfig.getQueueType();
+        int queueCapacity = threadPoolConfig.getQueueCapacity();
         if (!QueueTypeEnum.exists(queueType)) {
             throw new RuntimeException("队列不存在 " + queueType);
         }
+        BlockingQueue returnQueue = null;
         if (QueueTypeEnum.ARRAY_BLOCKING_QUEUE.getType().equals(queueType)) {
-            return new ArrayBlockingQueue(queueCapacity);
+            returnQueue = new ArrayBlockingQueue(queueCapacity);
+        } else if (QueueTypeEnum.SYNCHRONOUS_QUEUE.getType().equals(queueType)) {
+            returnQueue = new SynchronousQueue(threadPoolConfig.isFair());
+        } else if (QueueTypeEnum.PRIORITY_BLOCKING_QUEUE.getType().equals(queueType)) {
+            returnQueue = new PriorityBlockingQueue(queueCapacity);
+        } else if (QueueTypeEnum.DELAY_QUEUE.getType().equals(queueType)) {
+            returnQueue = new DelayQueue();
+        } else if (QueueTypeEnum.LINKED_BLOCKING_DEQUE.getType().equals(queueType)) {
+            returnQueue = new LinkedBlockingDeque(queueCapacity);
+        } else if (QueueTypeEnum.LINKED_TRANSFER_DEQUE.getType().equals(queueType)) {
+            returnQueue = new LinkedTransferQueue();
+        } else {
+            //可弹性伸缩的有界队列
+            returnQueue = new ResizableCapacityLinkedBlockIngQueue(queueCapacity);
         }
-        if (QueueTypeEnum.SYNCHRONOUS_QUEUE.getType().equals(queueType)) {
-            return new SynchronousQueue(fair);
+
+        //判断队列是否允许重复元素
+        if (!threadPoolConfig.isQueueAllowDuplicate()) {
+            //构建一个不允许重复的队列,这里通过装饰器扩展
+            returnQueue = new AntiDuplicateBlockingQueue(returnQueue, isBoundedQueue(returnQueue) ? queueCapacity : 8, threadPoolConfig.isQueueDuplicatedThrows());
         }
-        if (QueueTypeEnum.PRIORITY_BLOCKING_QUEUE.getType().equals(queueType)) {
-            return new PriorityBlockingQueue(queueCapacity);
-        }
-        if (QueueTypeEnum.DELAY_QUEUE.getType().equals(queueType)) {
-            return new DelayQueue();
-        }
-        if (QueueTypeEnum.LINKED_BLOCKING_DEQUE.getType().equals(queueType)) {
-            return new LinkedBlockingDeque(queueCapacity);
-        }
-        if (QueueTypeEnum.LINKED_TRANSFER_DEQUE.getType().equals(queueType)) {
-            return new LinkedTransferQueue();
-        }
-        //可弹性伸缩的有界队列
-        return new ResizableCapacityLinkedBlockIngQueue(queueCapacity);
+        return returnQueue;
+    }
+
+    /**
+     * 判断是否有界队列
+     *
+     * @param queue
+     * @return
+     */
+    public static boolean isBoundedQueue(BlockingQueue queue) {
+        return (queue instanceof ArrayBlockingQueue) || (queue instanceof PriorityBlockingQueue) || (queue instanceof LinkedBlockingDeque) || (queue instanceof ResizableCapacityLinkedBlockIngQueue);
     }
 
     /**
@@ -357,7 +360,7 @@ public class DynamicThreadPoolExecutor extends ThreadPoolExecutor {
     }
 
     private String getTaskTypeByRunnable(Runnable r) {
-        return ((TaskType) r).getType();
+        return ((CommandType) r).getType();
     }
 
 
@@ -373,14 +376,14 @@ public class DynamicThreadPoolExecutor extends ThreadPoolExecutor {
         /**
          * 线程池递增编号
          */
-        private static AtomicInteger poolNumber = new AtomicInteger(1);
+        private static final AtomicInteger poolNumber = new AtomicInteger(1);
 
         private final ThreadGroup group;
 
         /**
          * 线程递增编号
          */
-        private AtomicInteger threadNumber = new AtomicInteger(1);
+        private final AtomicInteger threadNumber = new AtomicInteger(1);
 
         private final String namePrefix;
 

@@ -6,13 +6,13 @@ import org.springframework.beans.factory.BeanNameAware;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
-import weihui.bcss.support.dtp.core.monitor.AbstractMonitorServiceBase;
 import weihui.bcss.support.dtp.core.config.ThreadPoolConfigCenter;
 import weihui.bcss.support.dtp.core.config.model.ThreadPoolConfig;
+import weihui.bcss.support.dtp.core.monitor.AbstractMonitorServiceBase;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -35,13 +35,11 @@ public class DynamicThreadPoolFactoryBean implements FactoryBean<ExecutorService
     /**
      * 配置中心
      */
-    @Autowired
     private ThreadPoolConfigCenter configCenter;
 
     /**
      * 监控
      */
-    @Autowired
     private AbstractMonitorServiceBase threadPoolMonitor;
 
     /**
@@ -59,7 +57,7 @@ public class DynamicThreadPoolFactoryBean implements FactoryBean<ExecutorService
     private int awaitTerminationSeconds = 0;
 
     @Override
-    public ExecutorService getObject() throws Exception {
+    public ExecutorService getObject() {
         return this.exposedExecutor;
     }
 
@@ -81,11 +79,16 @@ public class DynamicThreadPoolFactoryBean implements FactoryBean<ExecutorService
 
     private void initialize() {
         //若未设置 threadPoolName,则使用 beanName 作为 threadPoolName
-        if(StringUtils.isEmpty(threadPoolConfig.getThreadPoolName())){
+        if (StringUtils.isEmpty(threadPoolConfig.getThreadPoolName())) {
             threadPoolConfig.setThreadPoolName(beanName);
         }
+        ThreadPoolConfig finalConfig = configCenter.getThreadPoolConfig(threadPoolConfig.getThreadPoolName(), threadPoolConfig);
         //实例化
-        exposedExecutor = new DynamicThreadPoolExecutor(configCenter.getThreadPoolConfig(threadPoolConfig.getThreadPoolName(), threadPoolConfig), configCenter, threadPoolMonitor);
+        exposedExecutor = new DynamicThreadPoolExecutor(finalConfig, configCenter, threadPoolMonitor);
+        //如果需要去重,则使用AntiDuplicateThreadPoolExecutor装饰原对象
+        if (!finalConfig.isQueueAllowDuplicate()) {
+            exposedExecutor = new AntiDuplicateThreadPoolExecutor((ThreadPoolExecutor) exposedExecutor);
+        }
     }
 
     @Override

@@ -8,6 +8,9 @@ import weihui.bcss.support.dtp.core.monitor.transaction.TransactionStatisticsGro
 import weihui.bcss.support.dtp.core.monitor.transaction.TransactionStatisticsValue;
 import weihui.bcss.support.dtp.core.monitor.transaction.Transaction;
 import weihui.bcss.support.dtp.core.threadpool.DynamicThreadPoolExecutor;
+import weihui.bcss.support.dtp.core.threadpool.command.CallableTypeDecorator;
+import weihui.bcss.support.dtp.core.threadpool.command.CommandCreated;
+import weihui.bcss.support.dtp.core.threadpool.command.RunnableTypeDecorator;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -40,12 +43,14 @@ public abstract class AbstractMonitorServiceBase implements MonitorService, Moni
 
     /**
      * doMonitorRunningStatus
+     *
      * @param executor
      */
     protected abstract void doMonitorRunningStatus(DynamicThreadPoolExecutor executor);
 
     /**
      * doCollectTransaction
+     *
      * @param t
      * @param tsv
      */
@@ -76,8 +81,12 @@ public abstract class AbstractMonitorServiceBase implements MonitorService, Moni
      * @return
      */
     @Override
-    public Transaction newTransaction(TransactionStatisticsGroup transactionStatisticsGroup) {
-        return new Transaction(transactionStatisticsGroup.getThreadPoolName(), transactionStatisticsGroup.getTaskType());
+    public Transaction newTransaction(TransactionStatisticsGroup transactionStatisticsGroup, Runnable r) {
+        long created = 0;
+        if (r instanceof CommandCreated) {
+            created = ((CommandCreated) r).getCreatedTime();
+        }
+        return new Transaction(transactionStatisticsGroup.getThreadPoolName(), transactionStatisticsGroup.getTaskType(), created);
     }
 
     /**
@@ -101,7 +110,8 @@ public abstract class AbstractMonitorServiceBase implements MonitorService, Moni
         int success = t.isStatus() ? 1 : 0;
         int failure = t.isStatus() ? 0 : 1;
         // 本次耗时
-        int elapsed = t.getElapsed();
+        int executedElapsed = t.getExecutedElapsed();
+        int finishedElapsed = t.getFinishedElapsed();
         // CompareAndSet并发加入统计数据
         TransactionStatisticsValue current;
         TransactionStatisticsValue update = new TransactionStatisticsValue();
@@ -111,25 +121,40 @@ public abstract class AbstractMonitorServiceBase implements MonitorService, Moni
                 //第一次赋值
                 update.setSuccess(success);
                 update.setFailure(failure);
-                update.setElapsed(elapsed);
-                update.setElapsedAvg(elapsed);
-                update.setElapsedMin(elapsed);
-                update.setElapsedMax(elapsed);
+                update.setElapsed(executedElapsed);
+                update.setElapsedAvg(executedElapsed);
+                update.setElapsedMin(executedElapsed);
+                update.setElapsedMax(executedElapsed);
+                update.setFinishedElapsed(finishedElapsed);
+                update.setFinishedElapsedAvg(finishedElapsed);
+                update.setFinishedElapsedMin(finishedElapsed);
+                update.setFinishedElapsedMax(finishedElapsed);
             } else {
                 //成功总数
                 update.setSuccess(current.getSuccess() + success);
                 //失败总数
                 update.setFailure(current.getFailure() + failure);
-                //总耗时
-                update.setElapsed(current.getElapsed() + elapsed);
+                //执行总耗时
+                update.setElapsed(current.getElapsed() + executedElapsed);
                 if ((current.getSuccess() + current.getFailure()) > 0) {
                     //平均耗时
                     update.setElapsedAvg(current.getElapsed() / (current.getSuccess() + current.getFailure()));
                 }
                 //最小耗时
-                update.setElapsedMin(current.getElapsedMin() != 0 && current.getElapsedMin() < elapsed ? current.getElapsedMin() : elapsed);
+                update.setElapsedMin(current.getElapsedMin() != 0 && current.getElapsedMin() < executedElapsed ? current.getElapsedMin() : executedElapsed);
                 //最大耗时
-                update.setElapsedMax(current.getElapsedMax() > elapsed ? current.getElapsedMax() : elapsed);
+                update.setElapsedMax(current.getElapsedMax() > executedElapsed ? current.getElapsedMax() : executedElapsed);
+
+                //完成总耗时
+                update.setFinishedElapsed(current.getFinishedElapsed() + finishedElapsed);
+                if ((current.getSuccess() + current.getFailure()) > 0) {
+                    //平均耗时
+                    update.setFinishedElapsedAvg(current.getFinishedElapsed() / (current.getSuccess() + current.getFailure()));
+                }
+                //最小耗时
+                update.setFinishedElapsedMin(current.getFinishedElapsedMin() != 0 && current.getFinishedElapsedMin() < finishedElapsed ? current.getFinishedElapsedMin() : finishedElapsed);
+                //最大耗时
+                update.setFinishedElapsedMax(current.getFinishedElapsedMax() > finishedElapsed ? current.getFinishedElapsedMax() : finishedElapsed);
             }
         } while (!tsv.compareAndSet(current, update));
     }
@@ -138,6 +163,12 @@ public abstract class AbstractMonitorServiceBase implements MonitorService, Moni
         transactionStatisticsMap.values().forEach(tsv -> {
             //重置一个新对象, 相当于clean的效果
             tsv.set(new TransactionStatisticsValue());
+        });
+    }
+
+    protected synchronized void cleanRunningStatus() {
+        executorMap.values().forEach(executor -> {
+            executor.cleanRejectCount();
         });
     }
 

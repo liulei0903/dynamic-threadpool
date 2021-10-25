@@ -51,6 +51,16 @@ public class ThreadPoolConfig {
     private String queueType = QueueTypeEnum.RESIZABLE_LINKED_BLOCKING_QUEUE.getType();
 
     /**
+     * 队列中是否允许有重复的元素
+     */
+    private boolean queueAllowDuplicate = true;
+
+    /**
+     * 队列重复后是否抛出异常,抛出异常保证了原语义不被破坏 , 只有queueAllowDuplicate=false,配置该值才会生效,否则没作用;
+     */
+    private boolean queueDuplicatedThrows = true;
+
+    /**
      * SynchronousQueue 是否公平策略
      */
     private boolean fair;
@@ -279,7 +289,6 @@ public class ThreadPoolConfig {
     public String getUnitKey() {
         if (unitKey == null) {
             unitKey = KEY_PREFIX_THREADPOOL + threadPoolName + ".unit";
-            ;
         }
         return unitKey;
     }
@@ -345,6 +354,21 @@ public class ThreadPoolConfig {
         this.rejectedExecutionHandler = rejectedExecutionHandler;
     }
 
+    public boolean isQueueAllowDuplicate() {
+        return queueAllowDuplicate;
+    }
+
+    public void setQueueAllowDuplicate(boolean queueAllowDuplicate) {
+        this.queueAllowDuplicate = queueAllowDuplicate;
+    }
+
+    public boolean isQueueDuplicatedThrows() {
+        return queueDuplicatedThrows;
+    }
+
+    public void setQueueDuplicatedThrows(boolean queueDuplicatedThrows) {
+        this.queueDuplicatedThrows = queueDuplicatedThrows;
+    }
 
     @Override
     public String toString() {
@@ -354,6 +378,8 @@ public class ThreadPoolConfig {
                 ", maximumPoolSize=" + maximumPoolSize +
                 ", queueCapacity=" + queueCapacity +
                 ", queueType='" + queueType + '\'' +
+                ", queueAllowDuplicate=" + queueAllowDuplicate +
+                ", queueDuplicatedThrows=" + queueDuplicatedThrows +
                 ", fair=" + fair +
                 ", rejectedExecutionType='" + rejectedExecutionType + '\'' +
                 ", keepAliveTime=" + keepAliveTime +

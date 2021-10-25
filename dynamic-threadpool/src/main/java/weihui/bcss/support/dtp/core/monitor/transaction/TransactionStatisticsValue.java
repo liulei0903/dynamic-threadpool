@@ -42,6 +42,27 @@ public class TransactionStatisticsValue implements Serializable {
      */
     private long elapsedMax;
 
+    /**
+     * 总耗时
+     */
+    private long finishedElapsed;
+
+    /**
+     * 平均耗时
+     */
+    private long finishedElapsedAvg;
+
+    /**
+     * 最小耗时
+     */
+    private long finishedElapsedMin;
+
+    /**
+     * 最大耗时
+     */
+    private long finishedElapsedMax;
+
+
     public long getSuccess() {
         return success;
     }
@@ -90,32 +111,64 @@ public class TransactionStatisticsValue implements Serializable {
         this.elapsedMax = elapsedMax;
     }
 
+    public long getFinishedElapsed() {
+        return finishedElapsed;
+    }
+
+    public void setFinishedElapsed(long finishedElapsed) {
+        this.finishedElapsed = finishedElapsed;
+    }
+
+    public long getFinishedElapsedAvg() {
+        return finishedElapsedAvg;
+    }
+
+    public void setFinishedElapsedAvg(long finishedElapsedAvg) {
+        this.finishedElapsedAvg = finishedElapsedAvg;
+    }
+
+    public long getFinishedElapsedMin() {
+        return finishedElapsedMin;
+    }
+
+    public void setFinishedElapsedMin(long finishedElapsedMin) {
+        this.finishedElapsedMin = finishedElapsedMin;
+    }
+
+    public long getFinishedElapsedMax() {
+        return finishedElapsedMax;
+    }
+
+    public void setFinishedElapsedMax(long finishedElapsedMax) {
+        this.finishedElapsedMax = finishedElapsedMax;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        TransactionStatisticsValue that = (TransactionStatisticsValue) o;
+        return success == that.success && failure == that.failure && elapsed == that.elapsed && elapsedAvg == that.elapsedAvg && elapsedMin == that.elapsedMin && elapsedMax == that.elapsedMax && finishedElapsed == that.finishedElapsed && finishedElapsedAvg == that.finishedElapsedAvg && finishedElapsedMin == that.finishedElapsedMin && finishedElapsedMax == that.finishedElapsedMax;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(success, failure, elapsed, elapsedAvg, elapsedMin, elapsedMax, finishedElapsed, finishedElapsedAvg, finishedElapsedMin, finishedElapsedMax);
+    }
+
     @Override
     public String toString() {
-        return "StatisticsValue{" +
+        return "TransactionStatisticsValue{" +
                 "success=" + success +
                 ", failure=" + failure +
                 ", elapsed=" + elapsed +
                 ", elapsedAvg=" + elapsedAvg +
                 ", elapsedMin=" + elapsedMin +
                 ", elapsedMax=" + elapsedMax +
+                ", finishedElapsed=" + finishedElapsed +
+                ", finishedElapsedAvg=" + finishedElapsedAvg +
+                ", finishedElapsedMin=" + finishedElapsedMin +
+                ", finishedElapsedMax=" + finishedElapsedMax +
                 '}';
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        TransactionStatisticsValue that = (TransactionStatisticsValue) o;
-        return success == that.success && failure == that.failure && elapsed == that.elapsed && elapsedAvg == that.elapsedAvg && elapsedMin == that.elapsedMin && elapsedMax == that.elapsedMax;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(success, failure, elapsed, elapsedAvg, elapsedMin, elapsedMax);
     }
 }

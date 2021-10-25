@@ -1,7 +1,7 @@
 package weihui.bcss.support.dtp.core.filter;
 
 /**
- * 线程池runnable执行前后的过滤器
+ * 线程池runnable执行前后的过滤器(暂时没用到)
  *
  * @Description
  * @Author liulei
@@ -15,7 +15,7 @@ public interface ThreadPoolExecuteFilter {
      * @param t
      * @param r
      */
-    public void beforeExecute(Thread t, Runnable r);
+    void beforeExecute(Thread t, Runnable r);
 
 
     /**
@@ -24,5 +24,5 @@ public interface ThreadPoolExecuteFilter {
      * @param r
      * @param t
      */
-    public void afterExecute(Runnable r, Throwable t);
+    void afterExecute(Runnable r, Throwable t);
 }

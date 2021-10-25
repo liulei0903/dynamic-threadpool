@@ -8,29 +8,39 @@
            http://www.ctrip.com/schema/apollo.xsd">
 
 
-    <import resource="dynamic-threadpool.xml" />
+    <bean id="apolloThreadPoolConfigCentre"
+          class="weihui.bcss.support.dtp.core.config.impl.ApolloThreadPoolConfigCenterImpl">
+        <property name="nameSpace" value="PMD.threadpoolyml"/>
+    </bean>
+
+    <!-- 线程池监控 -->
+    <bean id="dynamicThreadPoolMonitor" class="weihui.bcss.support.dtp.core.monitor.DefaultMonitorServiceImpl" >
+        <property name="reportStrategy">
+            <!-- 默认为 log report-->
+            <bean class="weihui.bcss.support.dtp.core.monitor.report.strategy.LogReportStrategy">
+                <property name="logDurationOfSeconds" value="10"/>
+            </bean>
+        </property>
+    </bean>
 
     <!-- spring property bean 方式引入 -->
     <bean id="testThreadPoolExecutor" class="weihui.bcss.support.dtp.core.threadpool.DynamicThreadPoolFactoryBean">
-       <property name="threadPoolConfig">
-           <bean class="weihui.bcss.support.dtp.core.config.model.ThreadPoolConfig" >
-               <property name="corePoolSize" value="10"/>
-               <property name="maximumPoolSize" value="20"/>
-               <property name="queueCapacity" value="100"/>
-               <property name="unit" value="SECONDS"/>
-               <property name="keepAliveTime" value="120"/>
-               <property name="rejectedExecutionHandler">
-                   <bean class="java.util.concurrent.ThreadPoolExecutor$DiscardPolicy"/>
-               </property>
-               <property name="threadFactory">
-                   <bean class="threadpool.TestThreadFactory" >
-                       <constructor-arg value="myTest"></constructor-arg>
-                   </bean>
-               </property>
-           </bean>
-       </property>
+        <property name="threadPoolConfig">
+            <bean class="weihui.bcss.support.dtp.core.config.model.ThreadPoolConfig">
+                <property name="corePoolSize" value="10"/>
+                <property name="maximumPoolSize" value="20"/>
+                <property name="queueType" value="ResizableLinkedBlockIngQueue"/>
+                <property name="queueAllowDuplicate" value="true"/>
+                <property name="queueCapacity" value="100"/>
+                <property name="unit" value="SECONDS"/>
+                <property name="keepAliveTime" value="120"/>
+                <property name="rejectedExecutionHandler">
+                    <bean class="java.util.concurrent.ThreadPoolExecutor$DiscardPolicy"/>
+                </property>
+            </bean>
+        </property>
+        <property name="threadPoolMonitor" ref="dynamicThreadPoolMonitor" />
+        <property name="configCenter" ref="apolloThreadPoolConfigCentre" />
     </bean>
-
-
 
 </beans>

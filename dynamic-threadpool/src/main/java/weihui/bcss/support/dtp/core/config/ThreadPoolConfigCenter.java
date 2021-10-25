@@ -22,22 +22,22 @@ public interface ThreadPoolConfigCenter {
      * @param consumer
      * @return
      */
-    public boolean addChangeListener(String threadPoolName , Set<String> interestedKeys, Consumer<Map<String , String>> consumer);
+    boolean addChangeListener(String threadPoolName, Set<String> interestedKeys, Consumer<Map<String, String>> consumer);
 
     /**
      * 获取配置
      * @return
      */
-    public ThreadPoolConfigs getThreadPoolConfigs();
+    ThreadPoolConfigs getThreadPoolConfigs();
 
 
     /**
      * 获取配置
      * @param threadPollName
-     * @param appConfig
+     * @param clientConfig
      * @return
      */
-    public ThreadPoolConfig getThreadPoolConfig(String threadPollName , ThreadPoolConfig appConfig);
+    ThreadPoolConfig getThreadPoolConfig(String threadPollName, ThreadPoolConfig clientConfig);
 
 
 

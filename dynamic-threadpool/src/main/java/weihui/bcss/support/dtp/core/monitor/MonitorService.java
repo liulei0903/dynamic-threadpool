@@ -20,7 +20,7 @@ public interface MonitorService {
      * @param executor
      * @return
      */
-    public boolean monitorRunningStatus(DynamicThreadPoolExecutor executor);
+    boolean monitorRunningStatus(DynamicThreadPoolExecutor executor);
 
 
     /**
@@ -28,12 +28,12 @@ public interface MonitorService {
      * @param transactionStatisticsGroup
      * @return
      */
-    public Transaction newTransaction(TransactionStatisticsGroup transactionStatisticsGroup);
+    public Transaction newTransaction(TransactionStatisticsGroup transactionStatisticsGroup, Runnable r);
 
     /**
      * 收集执行结果
      * @param t
      */
-    public void collectTransaction(Transaction t);
+    void collectTransaction(Transaction t);
 
 }

@@ -6,15 +6,12 @@ import com.ctrip.framework.apollo.build.ApolloInjector;
 import com.ctrip.framework.apollo.enums.PropertyChangeType;
 import com.ctrip.framework.apollo.model.ConfigChange;
 import com.ctrip.framework.apollo.util.ConfigUtil;
-import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.StringUtils;
 import weihui.bcss.support.dtp.core.config.AbstractThreadPoolConfigCenterBase;
 import weihui.bcss.support.dtp.core.config.model.ThreadPoolConfig;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -58,13 +55,16 @@ public class ApolloThreadPoolConfigCenterImpl extends AbstractThreadPoolConfigCe
      */
     private boolean startOpSuccess = false;
 
+    /**
+     * 初始化配置中心的配置到jvm中
+     */
     @Override
     public void initialize() {
         try {
             //1.初始化 apollo 配置
-            initializApolloClient();
+            initApollo();
             //2.从配置中心同步配置到ThreadPoolConfigs 配置载体中
-            initializeThreadPoolConfigs();
+            initThreadPoolConfigs();
             startOpSuccess = true;
         } catch (Exception e) {
             logger.warn("Apollo initialize fail", e);
@@ -101,7 +101,7 @@ public class ApolloThreadPoolConfigCenterImpl extends AbstractThreadPoolConfigCe
     /**
      * 初始化apollo Config
      */
-    private void initializApolloClient() {
+    private void initApollo() {
         //1.优先取用户自定义的nameSpace
         if (!StringUtils.isEmpty(nameSpace)) {
             config = ConfigService.getConfig(nameSpace);
@@ -121,7 +121,7 @@ public class ApolloThreadPoolConfigCenterImpl extends AbstractThreadPoolConfigCe
     /**
      *
      */
-    private void initializeThreadPoolConfigs() {
+    private void initThreadPoolConfigs() {
         Set<String> propertyNames = config.getPropertyNames();
         Map<String, ThreadPoolConfig> threadPoolConfigMap = threadPoolConfigs.getThreadPoolConfigMap();
         propertyNames.forEach(pn -> {

@@ -4,6 +4,7 @@ import java.util.Objects;
 
 /**
  * 线程池中的一次 Runnable、Callable 对应一个 Transaction
+ *
  * @Description
  * @Author liulei
  * @Date 2021/6/7 18:38
@@ -26,16 +27,30 @@ public class Transaction {
     private boolean status = false;
 
     /**
-     * 执行耗时
+     * 线程池分配线程开始执行到结束的执行耗时,不包括在队列中等待的时间. 单位:毫秒
      */
-    private int elapsed = 0;
+    private int executedElapsed = 0;
 
+    /**
+     * 添加到线程池到执行完成总耗时,包括在队列中等待的时间. 单位:毫秒
+     */
+    private int finishedElapsed = 0;
+
+    /**
+     * 创建时间
+     */
+    private long created = 0;
+
+    /**
+     * 开始执行时间
+     */
     private long start = 0;
 
 
-    public Transaction(String threadPoolName, String taskType) {
+    public Transaction(String threadPoolName, String taskType, long created) {
         this.threadPoolName = threadPoolName;
         this.taskType = taskType;
+        this.created = created;
         start = System.currentTimeMillis();
     }
 
@@ -45,7 +60,9 @@ public class Transaction {
      */
     public void complete() {
         // 计算调用耗时
-        elapsed = Long.valueOf(System.currentTimeMillis() - this.start).intValue();
+        executedElapsed = Long.valueOf(System.currentTimeMillis() - this.start).intValue();
+        // 计算调用耗时
+        finishedElapsed = Long.valueOf(System.currentTimeMillis() - this.created).intValue();
     }
 
     public String getThreadPoolName() {
@@ -72,12 +89,21 @@ public class Transaction {
         this.status = status;
     }
 
-    public int getElapsed() {
-        return elapsed;
+
+    public int getExecutedElapsed() {
+        return executedElapsed;
     }
 
-    public void setElapsed(int elapsed) {
-        this.elapsed = elapsed;
+    public int getFinishedElapsed() {
+        return finishedElapsed;
+    }
+
+    public long getCreated() {
+        return created;
+    }
+
+    public long getStart() {
+        return start;
     }
 
     @Override
@@ -89,12 +115,12 @@ public class Transaction {
             return false;
         }
         Transaction that = (Transaction) o;
-        return status == that.status && elapsed == that.elapsed && threadPoolName.equals(that.threadPoolName) && taskType.equals(that.taskType);
+        return status == that.status && created == that.created &&  start == that.start && threadPoolName.equals(that.threadPoolName) && taskType.equals(that.taskType);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(threadPoolName, taskType, status, elapsed);
+        return Objects.hash(threadPoolName, taskType, status, executedElapsed, finishedElapsed, created, start);
     }
 
     @Override
@@ -103,9 +129,10 @@ public class Transaction {
                 "threadPoolName='" + threadPoolName + '\'' +
                 ", taskType='" + taskType + '\'' +
                 ", status=" + status +
-                ", elapsed=" + elapsed +
+                ", executedElapsed=" + executedElapsed +
+                ", finishedElapsed=" + finishedElapsed +
+                ", created=" + created +
+                ", start=" + start +
                 '}';
     }
-
-
 }

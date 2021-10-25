@@ -17,12 +17,12 @@ public interface ReportStrategy {
      * @return
      * @throws ThreadPoolMonitorException
      */
-    public MeterRegistry getMeterRegistry() throws ThreadPoolMonitorException;
+    MeterRegistry getMeterRegistry() throws ThreadPoolMonitorException;
 
     /**
      * 注册发布监听
      * @param runnable
      * @throws ThreadPoolMonitorException
      */
-    public void regPublishListener(Runnable runnable) throws ThreadPoolMonitorException;
+    void regPublishListener(Runnable runnable) throws ThreadPoolMonitorException;
 }

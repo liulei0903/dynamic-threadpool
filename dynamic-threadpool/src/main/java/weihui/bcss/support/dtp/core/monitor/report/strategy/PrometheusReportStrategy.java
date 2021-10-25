@@ -26,7 +26,7 @@ public class PrometheusReportStrategy implements ReportStrategy {
 
     private String premetheusWebContext = "/prometheus";
 
-    private ExecutorService singleExecutor = new ThreadPoolExecutor(1, 1, 1000, TimeUnit.HOURS, new SynchronousQueue(), new DynamicThreadPoolExecutor.DefaultThreadFactory("dynamic-threadpool-monitor"));
+    private final ExecutorService singleExecutor = new ThreadPoolExecutor(1, 1, 1000, TimeUnit.HOURS, new SynchronousQueue(), new DynamicThreadPoolExecutor.DefaultThreadFactory("dynamic-threadpool-monitor"));
 
     public Runnable publishListenerRunnable;
 
@@ -55,6 +55,7 @@ public class PrometheusReportStrategy implements ReportStrategy {
                 try (OutputStream os = httpExchange.getResponseBody()) {
                     os.write(response.getBytes());
                 }
+                //通知观察者 publish 事件
                 publishListenerRunnable.run();
             });
             singleExecutor.submit(server::start);

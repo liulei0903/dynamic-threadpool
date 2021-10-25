@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import weihui.bcss.support.dtp.core.monitor.report.strategy.ReportStrategy;
 import weihui.bcss.support.dtp.core.monitor.transaction.Transaction;
+import weihui.bcss.support.dtp.core.monitor.transaction.TransactionStatisticsGroup;
 import weihui.bcss.support.dtp.core.monitor.transaction.TransactionStatisticsValue;
 import weihui.bcss.support.dtp.core.threadpool.DynamicThreadPoolExecutor;
 
@@ -43,8 +44,10 @@ public class DefaultMonitorServiceImpl extends AbstractMonitorServiceBase {
     public void initialize() {
         registry = reportStrategy.getMeterRegistry();
         //注册发布的监听事件，发布后将transaction的监控统计清空
-        reportStrategy.regPublishListener(() ->
-                cleanTransactionStatistics()
+        reportStrategy.regPublishListener(() -> {
+                    cleanTransactionStatistics();
+                    cleanRunningStatus();
+                }
         );
     }
 
@@ -116,6 +119,15 @@ public class DefaultMonitorServiceImpl extends AbstractMonitorServiceBase {
         registry.gauge(TRANSACTION_ELAPSED_MAX, transactionTags, reference, r -> {
             return r.get().getElapsedMax();
         });
+        registry.gauge(TRANSACTION_FINISHED_ELAPSED_AVG, transactionTags, reference, r -> {
+            return r.get().getFinishedElapsedAvg();
+        });
+        registry.gauge(TRANSACTION_FINISHED_ELAPSED_MIN, transactionTags, reference, r -> {
+            return r.get().getFinishedElapsedMin();
+        });
+        registry.gauge(TRANSACTION_FINISHED_ELAPSED_MAX, transactionTags, reference, r -> {
+            return r.get().getFinishedElapsedMax();
+        });
     }
 
     private List<Tag> buildThreadPoolStatusTags(String threadPoolName) {
@@ -138,4 +150,6 @@ public class DefaultMonitorServiceImpl extends AbstractMonitorServiceBase {
     public void setReportStrategy(ReportStrategy reportStrategy) {
         this.reportStrategy = reportStrategy;
     }
+
+
 }

@@ -106,7 +106,7 @@ public class LogReportStrategy implements ReportStrategy {
                 logger.info(log.toString());
             });
 
-            //通知观察则 publish 事件
+            //通知观察者 publish 事件
             publishListenerRunnable.run();
         }
 
@@ -128,9 +128,9 @@ public class LogReportStrategy implements ReportStrategy {
         String humanReadableByteCount(double bytes) {
             int unit = 1024;
             if (!(bytes < (double) unit) && !Double.isNaN(bytes)) {
-                int exp = (int) (Math.log(bytes) / Math.log((double) unit));
+                int exp = (int) (Math.log(bytes) / Math.log(unit));
                 String pre = "KMGTPE".charAt(exp - 1) + "i";
-                return DoubleFormat.decimalOrNan(bytes / Math.pow((double) unit, (double) exp)) + " " + pre + "B";
+                return DoubleFormat.decimalOrNan(bytes / Math.pow(unit, exp)) + " " + pre + "B";
             } else {
                 return DoubleFormat.decimalOrNan(bytes) + " B";
             }
@@ -143,7 +143,7 @@ public class LogReportStrategy implements ReportStrategy {
 
         private Function<Meter, String> defaultMeterIdPrinter() {
             return (meter) -> {
-                return super.getConventionName(meter.getId()) + (String) super.getConventionTags(meter.getId()).stream().map((t) -> {
+                return super.getConventionName(meter.getId()) + super.getConventionTags(meter.getId()).stream().map((t) -> {
                     return t.getKey() + "=" + t.getValue();
                 }).collect(Collectors.joining(",", "{", "}"));
             };
